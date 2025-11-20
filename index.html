@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Modern BMI Studio — Final</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#071021;
+    --card:#0e1722;
+    --muted:#9fb0c8;
+    --text:#e6eef8;
+    --accent:#6c7cff;
+    --accent-2:#59c6ff;
+    --card-radius:16px;
+    --max-bmi:40;
+  }
+
+  /* Light theme overrides */
+  body.light{
+    --bg:#f6f8fb;
+    --card:#CAF4FF;
+    --muted:#6b7280;
+    --text:#0b1320;
+    --accent:#3b82f6;
+    --accent-2:#06b6d4;
+  }
+
+  /* Minimal linear gradient backgrounds for each theme */
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+    background: linear-gradient(135deg, #435663, #313647);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+  }
+  body.light{
+    background: linear-gradient(135deg, #BED7DC, #FBF9F1);
+  }
+
+  body{display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;padding:20px}
+
+  .wrap{width:980px;max-width:100%;display:grid;grid-template-columns:460px 1fr;gap:24px;align-items:center}
+  @media (max-width:920px){ .wrap{grid-template-columns:1fr;padding:16px} }
+
+  .card{
+    background:linear-gradient(180deg,var(--card),rgba(255,255,255,0.01));
+    border-radius:var(--card-radius);
+    padding:18px;
+    box-shadow:0 8px 30px rgba(0, 102, 255, 0.06);
+    border:1px solid rgba(0,0,0,0.04);
+  }
+
+  /* Dark theme card (default) */
+  body:not(.light) .card{
+    box-shadow:0 8px 30px rgba(2,6,12,0.6);
+    border:1px solid rgba(255,255,255,0.02);
+  }
+
+  /* Light theme card shadow (new) */
+  body.light .card{
+    box-shadow:
+      0 16px 40px rgba(13,78,180,0.12),
+      0 6px 18px rgba(3,10,30,0.06);
+    border:1px solid rgba(0,0,0,0.06);
+  }
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+  header h1{margin:0;font-size:18px;font-weight:700}
+  .theme-switch{display:flex;align-items:center;gap:8px}
+  .switch{width:46px;height:26px;border-radius:999px;background:rgba(0,0,0,0.12);display:inline-flex;align-items:center;padding:3px;cursor:pointer;border:1px solid rgba(255,255,255,0.03)}
+  .knob{width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 4px 10px rgba(2,6,23,0.16);transform:translateX(0);transition:transform 260ms cubic-bezier(.2,.9,.3,1)}
+  .switch.on .knob{transform:translateX(20px)}
+
+  .control{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+  .control .label{width:92px;color:var(--muted);font-size:13px}
+  .field{flex:1;display:flex;align-items:center;gap:10px;justify-content:flex-start}
+
+  /* Center picker controls only (leave unit-toggle row unchanged) */
+  .control .field:not(.unit-toggle){
+    justify-content: center;
+  }
+
+  /* --- Single-number picker (narrower, centered) --- */
+  .picker {
+    width:140px;
+    height:56px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    padding:6px 10px;
+    padding-right:48px;
+    overflow:hidden;
+    background: linear-gradient(145deg, rgba(135, 107, 107, 0.02), rgba(242, 219, 219, 0.02));
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+  body.light .picker {
+    background: linear-gradient(180deg,#ffffff,#f7fbff);
+    box-shadow: 0 8px 20px rgba(3,10,30,0.05);
+    border:1px solid rgba(0,0,0,0.04);
+  }
+
+  /* remove wheel-item display — we rely on the single input now */
+  .wheel { width:100%; height:100%; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+  .wheel-item { display:none; } /* ensure no overlapping numbers */
+
+  /* left/right click zones are inert now (typing is primary) */
+  .zone { position:absolute; top:0; bottom:0; width:30%; cursor:default; background:transparent; z-index:2; }
+  .zone.left{ left:0; }
+  .zone.right{ right:0; }
+
+  /* unit button styled like ghost small button */
+  .unit-btn {
+    position:absolute;
+    right:8px;
+    top:50%;
+    transform:translateY(-50%);
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.06);
+    padding:6px 8px;
+    border-radius:10px;
+    color:var(--text);
+    font-size:12px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    z-index:3;
+    pointer-events:auto;
+  }
+  body.light .unit-btn { border:1px solid rgba(0,0,0,0.06); color:var(--text); background:transparent; }
+  .unit-btn:active{ transform: translateY(-50%) scale(0.98); }
+
+  /* +/- buttons: plus functional, minus visually disabled */
+  .rbtn{
+    width:42px;height:42px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);display:grid;place-items:center;cursor:default;font-weight:800;font-size:18px;
+    transition:transform 120ms ease, background 160ms ease; flex:0 0 42px;
+    opacity:0.95;
+  }
+  .rbtn.increment{ cursor:pointer; }
+  .rbtn.decrement{ cursor:pointer; }
+
+  body.light .rbtn{ border:1px solid rgba(0,0,0,0.06); color:var(--text) }
+
+  /* visible center input (editable) */
+  .picker-input {
+    position:absolute;
+    left:45%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:68%;
+    background:transparent;
+    border:none;
+    outline:none;
+    text-align:center;
+    font-weight:800;
+    font-size:26px;
+    color:var(--text);
+    z-index:4;
+    caret-color:var(--accent-2);
+  }
+  body.light .picker-input { color:var(--text); }
+
+  .visual{display:flex;flex-direction:column;gap:12px}
+  .result-card{display:flex;gap:18px;align-items:center;padding:16px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border:1px solid rgba(255,255,255,0.02)}
+  body.light .result-card{background:linear-gradient(180deg,rgba(0,0,0,0.02),transparent);border:1px solid rgba(0,0,0,0.06)}
+
+  /* gauge */
+  .gauge{width:200px;height:200px;display:grid;place-items:center;position:relative}
+  svg{transform:rotate(-90deg)}
+  #arc{transition: stroke 320ms ease, stroke-dashoffset 700ms cubic-bezier(.2,.9,.3,1);}
+
+  .bmi-num{position:absolute;display:flex;flex-direction:column;align-items:center}
+  .bmi-num .big{font-size:28px;font-weight:800}
+  .bmi-num .small{font-size:13px;color:var(--muted)}
+
+  .meta{display:flex;flex-direction:column;gap:8px}
+  .category{font-weight:700;font-size:20px}
+  .advice{color:var(--muted);font-size:16px;max-width:420px}
+
+  .actions{display:flex;gap:8px}
+  .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#021023;padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text);padding:8px 10px;border-radius:10px}
+  body.light .btn.ghost{border:1px solid rgba(0,0,0,0.06);color:var(--text)}
+
+  /* visually-hidden utility for old hidden inputs (we keep them for compatibility) */
+  .visually-hidden{
+    position:absolute!important;
+    height:1px;width:1px;
+    overflow:hidden;clip:rect(1px,1px,1px,1px);
+    white-space:nowrap;border:0;padding:0;margin:-1px;
+  }
+
+  @media (max-width:520px){
+    .picker{width:120px;height:54px}
+    .wheel-item{font-size:22px}
+    .rbtn{width:38px;height:38px}
+    .gauge{width:140px;height:140px}
+    .picker-input{font-size:22px}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap" role="main" aria-label="BMI studio">
+    <!-- LEFT: controls -->
+    <div class="card" role="region" aria-labelledby="title-left">
+      <header>
+        <h1 id="title-left">BMI Studio</h1>
+
+        <div class="theme-switch" title="Toggle light / dark theme">
+          <div style="font-size:12px;color:var(--muted);">Theme</div>
+          <div id="themeToggle" class="switch" role="switch" aria-checked="false" tabindex="0">
+            <div class="knob"></div>
+          </div>
+        </div>
+      </header>
+
+      <div style="height:8px"></div>
+
+      <div class="control">
+        <div class="label">Units</div>
+        <div class="field unit-toggle" role="tablist" aria-label="Unit toggle">
+          <button id="metricBtn" class="active btn ghost" role="tab" aria-selected="true">Metric (kg / cm)</button>
+          <button id="imperialBtn" class="btn ghost" role="tab">Imperial (lb / in)</button>
+        </div>
+      </div>
+
+      <!-- Weight picker -->
+      <div class="control">
+        <div class="label">Weight</div>
+        <div class="field">
+          <!-- minus intentionally disabled -->
+          <button class="rbtn decrement" aria-label="decrease weight" data-action="dec" data-target="weightWheel">−</button>
+
+          <div class="picker" id="weightWheel" data-min="10" data-max="500" data-step-metric="0.5" data-step-imperial="1" data-unit-metric="kg" data-unit-imperial="lb" data-value="70" tabindex="0" role="spinbutton" aria-valuemin="10" aria-valuemax="500" aria-label="Weight picker">
+            <div class="wheel">
+              <div class="wheel-item" aria-hidden="true">70</div>
+            </div>
+            <div class="zone left" aria-hidden="true"></div>
+            <div class="zone right" aria-hidden="true"></div>
+            <button class="unit-btn btn ghost" aria-label="toggle unit">kg</button>
+
+            <!-- visible input inside the picker (user can type directly) -->
+            <input class="picker-input" inputmode="numeric" pattern="[0-9]*[.,]?[0-9]*" aria-label="weight input" />
+          </div>
+
+          <button class="rbtn increment" aria-label="increase weight" data-action="inc" data-target="weightWheel">+</button>
+
+          <!-- hidden compatibility input (used by previewFromFields) -->
+          <input id="weight" class="visually-hidden" type="number" inputmode="numeric" aria-label="weight value" min="10" max="500" step="0.1" />
+        </div>
+      </div>
+
+      <!-- Height picker -->
+      <div class="control">
+        <div class="label">Height</div>
+        <div class="field">
+          <button class="rbtn decrement" aria-label="decrease height" data-action="dec" data-target="heightWheel">−</button>
+
+          <div class="picker" id="heightWheel" data-min="50" data-max="250" data-step-metric="0.5" data-step-imperial="0.5" data-unit-metric="cm" data-unit-imperial="in" data-value="175" tabindex="0" role="spinbutton" aria-valuemin="50" aria-valuemax="250" aria-label="Height picker">
+            <div class="wheel">
+              <div class="wheel-item" aria-hidden="true">175</div>
+            </div>
+            <div class="zone left" aria-hidden="true"></div>
+            <div class="zone right" aria-hidden="true"></div>
+            <button class="unit-btn btn ghost" aria-label="toggle unit">cm</button>
+
+            <input class="picker-input" inputmode="numeric" pattern="[0-9]*[.,]?[0-9]*" aria-label="height input" />
+          </div>
+
+          <button class="rbtn increment" aria-label="increase height" data-action="inc" data-target="heightWheel">+</button>
+
+          <input id="height" class="visually-hidden" type="number" inputmode="numeric" aria-label="height value" min="50" max="250" step="0.1" />
+        </div>
+      </div>
+
+      <!-- Age picker -->
+      <div class="control">
+        <div class="label">Age</div>
+        <div class="field">
+          <button class="rbtn decrement" aria-label="decrease age" data-action="dec" data-target="ageWheel">−</button>
+
+          <div class="picker" id="ageWheel" data-min="1" data-max="120" data-step-metric="1" data-step-imperial="1" data-unit-metric="yrs" data-unit-imperial="yrs" data-value="25" tabindex="0" role="spinbutton" aria-valuemin="1" aria-valuemax="120" aria-label="Age picker">
+            <div class="wheel">
+              <div class="wheel-item" aria-hidden="true">25</div>
+            </div>
+            <div class="zone left" aria-hidden="true"></div>
+            <div class="zone right" aria-hidden="true"></div>
+            <button class="unit-btn btn ghost" aria-label="toggle unit">yrs</button>
+
+            <input class="picker-input" inputmode="numeric" pattern="[0-9]*" aria-label="age input" />
+          </div>
+
+          <button class="rbtn increment" aria-label="increase age" data-action="inc" data-target="ageWheel">+</button>
+
+          <input id="age" class="visually-hidden" type="number" inputmode="numeric" aria-label="age value" min="1" max="120" step="1" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button class="btn ghost" id="resetBtn">Reset</button>
+        <button class="btn ghost" id="saveBtn">Save</button>
+        <button class="btn" id="exportBtn">Export BMI</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: visual & results (unchanged) -->
+    <div class="visual">
+      <div class="card result-card" role="region" aria-labelledby="resultTitle">
+        <div class="gauge" aria-hidden="true">
+          <svg width="200" height="200" viewBox="0 0 160 160" id="gaugeSvg" role="img" aria-hidden="true">
+            <defs>
+              <linearGradient id="gGrad" x1="0" x2="1">
+                <stop id="gradStop1" offset="0%" stop-color="#6c7cff" />
+                <stop id="gradStop2" offset="100%" stop-color="#59c6ff" />
+              </linearGradient>
+            </defs>
+
+            <circle cx="80" cy="80" r="64" stroke="rgba(0,0,0,0.06)" stroke-width="14" fill="none"></circle>
+            <circle id="arc" cx="80" cy="80" r="64" stroke="url(#gGrad)" stroke-width="14" stroke-linecap="round" fill="none" stroke-dasharray="402.12" stroke-dashoffset="402.12"></circle>
+          </svg>
+
+          <div class="bmi-num" role="group" aria-label="bmi value and category">
+            <div class="big" id="bmiValue">—</div>
+            <div class="small" id="bmiLabel">Enter values</div>
+          </div>
+        </div>
+
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+          <div class="meta">
+            <div class="category" id="category">No data</div>
+            <div class="advice" id="advice">Enter your height & weight — results update automatically.</div>
+          </div>
+          <div style="height:4px"></div>
+          <div class="actions">
+            <button class="btn ghost" id="historyBtn">History</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* Typing-only pickers with single visible number + increment-only plus button.
+   - Single visible number: .picker-input is the only visible element the user interacts with.
+   - Plus (increment) buttons work; minus buttons are disabled (intentional).
+   - Inputs clamp to min/max and format according to step precision.
+   - Debounced typing commit and Enter/Escape handling.
+*/
+
+const MAX_BMI = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--max-bmi')) || 40;
+const els = {
+  weight: document.getElementById('weight'),
+  height: document.getElementById('height'),
+  age: document.getElementById('age'),
+  metricBtn: document.getElementById('metricBtn'),
+  imperialBtn: document.getElementById('imperialBtn'),
+  bmiValue: document.getElementById('bmiValue'),
+  bmiLabel: document.getElementById('bmiLabel'),
+  arc: document.getElementById('arc'),
+  gradStop1: document.getElementById('gradStop1'),
+  gradStop2: document.getElementById('gradStop2'),
+  category: document.getElementById('category'),
+  advice: document.getElementById('advice'),
+  resetBtn: document.getElementById('resetBtn'),
+  exportBtn: document.getElementById('exportBtn'),
+  saveBtn: document.getElementById('saveBtn'),
+  themeToggle: document.getElementById('themeToggle')
+};
+
+let unit = 'metric';
+window._wheels = {};
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  if(els.themeToggle){
+    els.themeToggle.addEventListener('click', toggleTheme);
+    els.themeToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); toggleTheme(); }});
+  }
+
+  // unit buttons inside pickers toggle global unit
+  document.querySelectorAll('.picker .unit-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      if(unit === 'metric' && els.imperialBtn) els.imperialBtn.click();
+      else if(unit === 'imperial' && els.metricBtn) els.metricBtn.click();
+    });
+  });
+
+  // wire increment (+) buttons only
+  document.querySelectorAll('.rbtn.increment').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.target;
+      const w = window._wheels[id];
+      if(w) w.increment();
+    });
+  });
+  // wire decrement (-) buttons
+  document.querySelectorAll('.rbtn.decrement').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.target;
+      const w = window._wheels[id];
+      if(w) w.decrement();
+    });
+  });
+
+
+  // create pickers
+  createWheel('weightWheel','weight');
+  createWheel('heightWheel','height');
+  createWheel('ageWheel','age');
+
+  initDefaults();
+});
+
+/* Theme handlers */
+function restoreTheme(){
+  const t = localStorage.getItem('bmiStudio.theme') || 'dark';
+  if(t === 'light'){ document.body.classList.add('light'); if(els.themeToggle) els.themeToggle.classList.add('on'); if(els.themeToggle) els.themeToggle.setAttribute('aria-checked','true'); }
+  else { document.body.classList.remove('light'); if(els.themeToggle) els.themeToggle.classList.remove('on'); if(els.themeToggle) els.themeToggle.setAttribute('aria-checked','false'); }
+}
+function toggleTheme(){
+  const isLight = document.body.classList.toggle('light');
+  if(isLight){ if(els.themeToggle) els.themeToggle.classList.add('on'); if(els.themeToggle) els.themeToggle.setAttribute('aria-checked','true'); localStorage.setItem('bmiStudio.theme','light'); }
+  else { if(els.themeToggle) els.themeToggle.classList.remove('on'); if(els.themeToggle) els.themeToggle.setAttribute('aria-checked','false'); localStorage.setItem('bmiStudio.theme','dark'); }
+}
+
+function initDefaults(){
+  unit = 'metric';
+  if(els.weight) els.weight.value = 70;
+  if(els.height) els.height.value = 175;
+  if(els.age) els.age.value = 25;
+  restoreTheme();
+  updateUnitUI();
+  previewFromFields();
+}
+
+/* Unit toggles with conversions and wheel updates */
+if(els.metricBtn) els.metricBtn.addEventListener('click', ()=>{
+  if(unit === 'metric') return;
+  const wv = parseFloat(els.weight.value) || 0;
+  const hv = parseFloat(els.height.value) || 0;
+  unit = 'metric';
+  if(els.weight){
+    const newW = Math.round((wv / 2.20462) * 10)/10 || 70;
+    els.weight.value = newW;
+    window._wheels['weightWheel'] && window._wheels['weightWheel'].setValue(newW);
+  }
+  if(els.height){
+    const newH = Math.round((hv * 2.54) * 10)/10 || 175;
+    els.height.value = newH;
+    window._wheels['heightWheel'] && window._wheels['heightWheel'].setValue(newH);
+  }
+  updateUnitUI(); previewFromFields();
+});
+if(els.imperialBtn) els.imperialBtn.addEventListener('click', ()=>{
+  if(unit === 'imperial') return;
+  const wv = parseFloat(els.weight.value) || 0;
+  const hv = parseFloat(els.height.value) || 0;
+  unit = 'imperial';
+  if(els.weight){
+    const newW = Math.round((wv * 2.20462) * 10)/10 || 154;
+    els.weight.value = newW;
+    window._wheels['weightWheel'] && window._wheels['weightWheel'].setValue(newW);
+  }
+  if(els.height){
+    const newH = Math.round((hv / 2.54) * 10)/10 || 69;
+    els.height.value = newH;
+    window._wheels['heightWheel'] && window._wheels['heightWheel'].setValue(newH);
+  }
+  updateUnitUI(); previewFromFields();
+});
+function updateUnitUI(){
+  if(!els.metricBtn || !els.imperialBtn) return;
+  if(unit === 'metric'){
+    els.metricBtn.classList.add('active'); els.imperialBtn.classList.remove('active');
+    ['weightWheel','heightWheel','ageWheel'].forEach(id=> window._wheels[id] && window._wheels[id].setUnit('metric'));
+  } else {
+    els.metricBtn.classList.remove('active'); els.imperialBtn.classList.add('active');
+    ['weightWheel','heightWheel','ageWheel'].forEach(id=> window._wheels[id] && window._wheels[id].setUnit('imperial'));
+  }
+}
+
+/* Wheel factory: typing-only implementation with single visible number */
+function createWheel(domId, inputId){
+  const picker = document.getElementById(domId);
+  const input = document.getElementById(inputId);
+  if(!picker || !input) return;
+  const visible = picker.querySelector('.picker-input');
+  const min = parseFloat(picker.dataset.min);
+  const max = parseFloat(picker.dataset.max);
+  const stepMetric = parseFloat(picker.dataset.stepMetric || picker.dataset['step-metric'] || 1);
+  const stepImperial = parseFloat(picker.dataset.stepImperial || picker.dataset['step-imperial'] || stepMetric);
+  const unitMetric = picker.dataset.unitMetric || picker.dataset['unit-metric'] || '';
+  const unitImperial = picker.dataset.unitImperial || picker.dataset['unit-imperial'] || unitMetric;
+
+  let step = (unit === 'metric') ? stepMetric : stepImperial;
+  let displayUnit = (unit === 'metric') ? unitMetric : unitImperial;
+
+  let value = parseFloat(input.value) || parseFloat(picker.dataset.value) || 0;
+  value = clamp(value);
+
+  function isIntStep(s){ return Math.abs(s - Math.round(s)) < 1e-9; }
+  function decimalsFor(s){ if(isIntStep(s)) return 0; const p = String(s).split('.')[1]; return p ? p.length : 1; }
+  function format(v){
+    if(isIntStep(step)) return String(Math.round(v));
+    return Number(v).toFixed(decimalsFor(step));
+  }
+  function clamp(v){
+    if(isNaN(v)) return value;
+    if(v <= min) return min;
+    if(v >= max) return max;
+    if(isIntStep(step)) return Math.round(v);
+    const d = decimalsFor(step);
+    const mult = Math.pow(10,d);
+    return Math.round(v * mult) / mult;
+  }
+
+  function writeValue(v){
+    v = clamp(v);
+    value = v;
+    if(visible) visible.value = format(v);
+    input.value = v;
+    picker.setAttribute('aria-valuenow', v);
+    const unitBtn = picker.querySelector('.unit-btn');
+    if(unitBtn) unitBtn.textContent = displayUnit;
+    if(typeof previewFromFields === 'function') previewFromFields();
+  }
+
+  // initialize
+  writeValue(value);
+
+  // increment — used by plus button
+  function increment(){
+    const next = clamp(Number((value + step).toFixed(decimalsFor(step))));
+    if(next === value) return;
+    writeValue(next);
+  }
+
+  // no decrement per request (minus is disabled)
+  function decrement(){
+    const next = clamp(Number((value - step).toFixed(decimalsFor(step))));
+    if(next === value) return;
+    writeValue(next);
+  }
+
+
+  function setValue(v){
+    writeValue(clamp(Number(v) || 0));
+  }
+  function setUnit(u){
+    if(u === 'metric'){ step = stepMetric; displayUnit = unitMetric; }
+    else { step = stepImperial; displayUnit = unitImperial; }
+    writeValue(value);
+  }
+  function renderZero(){
+    writeValue(0);
+  }
+
+  // typing support with debounce + Enter/Escape
+  if(visible){
+    visible.value = format(value);
+    let to;
+    visible.addEventListener('input', ()=>{
+      clearTimeout(to);
+      const raw = visible.value.replace(',', '.').trim();
+      if(raw === '' || raw === '-' || raw === '.') return;
+      // show the typed chars immediately (no formatting)
+      // commit after debounce
+      to = setTimeout(()=> {
+        const parsed = Number(raw);
+        if(!isNaN(parsed)) setValue(parsed);
+      }, 420);
+    });
+    visible.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        const raw = visible.value.replace(',', '.').trim();
+        const parsed = Number(raw);
+        if(!isNaN(parsed)) setValue(parsed);
+        visible.blur();
+      }
+      if(e.key === 'Escape'){
+        e.preventDefault();
+        visible.value = format(value);
+        visible.blur();
+      }
+    });
+    // On blur, ensure input normalized
+    visible.addEventListener('blur', ()=>{
+      visible.value = format(value);
+    });
+  }
+
+  // expose API
+  window._wheels[picker.id] = { increment, decrement, setValue, setUnit, renderZero, getValue: ()=>value, recomputeSizes: ()=>{} };
+
+  // set initial aria and input
+  input.value = value;
+  picker.setAttribute('aria-valuenow', value);
+  const unitBtn = picker.querySelector('.unit-btn');
+  if(unitBtn) unitBtn.textContent = displayUnit;
+}
+
+/* BMI and rendering (unchanged) */
+function computeBMI(weight, height, u='metric'){
+  if(!weight || !height) return null;
+  if(u === 'metric'){ const m = height/100; return Math.round((weight / (m*m)) * 10)/10; }
+  else { return Math.round(((703 * weight) / (height*height)) * 10)/10; }
+}
+
+function previewFromFields(){
+  const w = els.weight ? parseFloat(els.weight.value) : 0;
+  const h = els.height ? parseFloat(els.height.value) : 0;
+  if(!w || !h){ renderEmpty(); return; }
+  const bmi = computeBMI(w,h,unit);
+  if(bmi === null) { renderEmpty(); return; }
+  renderResult(bmi, true);
+}
+
+function renderResult(bmi, animate = true){
+  const val = Math.round(bmi*10)/10;
+  if(els.bmiValue) els.bmiValue.textContent = val.toFixed(1);
+  const cat = categoryForBMI(val);
+  if(els.bmiLabel) els.bmiLabel.textContent = cat.label;
+  if(els.category) els.category.textContent = cat.title;
+  if(els.advice) els.advice.textContent = cat.advice;
+  animateArc(val, animate);
+  setGaugeColors(cat.colorStart, cat.colorEnd);
+}
+
+function renderEmpty(){
+  if(els.bmiValue) els.bmiValue.textContent = '—';
+  if(els.bmiLabel) els.bmiLabel.textContent = 'Enter values';
+  if(els.category) els.category.textContent = 'No data';
+  if(els.advice) els.advice.textContent = 'Enter your height & weight — results update automatically.';
+  setGaugeColors('#6c7cff','#59c6ff');
+  if(els.arc){
+    const circumference = 2*Math.PI*64;
+    els.arc.style.transition = 'none';
+    els.arc.style.strokeDashoffset = circumference;
+    setTimeout(()=> els.arc.style.transition = 'stroke-dashoffset 700ms cubic-bezier(.2,.9,.3,1), stroke 320ms ease', 50);
+  }
+}
+
+function categoryForBMI(bmi){
+  if(bmi < 18.5) {
+    return { label: 'Underweight', title: 'Underweight', advice: 'A bit light — consider a calorie-dense plan.', colorStart:'#6c7cff', colorEnd:'#59c6ff' };
+  } else if (bmi < 25) {
+    return { label: 'Healthy', title: 'Healthy', advice: 'Great — maintain balanced nutrition and strength training.', colorStart:'#2bd67e', colorEnd:'#28c76f' };
+  } else if (bmi < 30) {
+    return { label: 'Overweight', title: 'Overweight', advice: 'Slightly above healthy. Small daily changes help.', colorStart:'#ffd166', colorEnd:'#ffb020' };
+  } else {
+    return { label: 'Obese', title: 'Obese', advice: 'Consider a structured plan and professional advice.', colorStart:'#ff7b7b', colorEnd:'#ff6b6b' };
+  }
+}
+
+function animateArc(bmi, animate = true){
+  if(!els.arc) return;
+  const circumference = 2*Math.PI*64;
+  const clamped = Math.max(10, Math.min(bmi, MAX_BMI));
+  const pct = (clamped - 10) / (MAX_BMI - 10);
+  const offset = circumference * (1 - pct);
+  if(!animate){
+    els.arc.style.transition = 'none';
+    els.arc.style.strokeDashoffset = offset;
+    setTimeout(()=> els.arc.style.transition = 'stroke-dashoffset 700ms cubic-bezier(.2,.9,.3,1), stroke 320ms ease', 50);
+  } else {
+    els.arc.style.strokeDashoffset = offset;
+  }
+}
+
+function setGaugeColors(c1,c2){
+  if(!els.arc) return;
+  try{
+    els.arc.style.stroke = c1;
+    els.arc.setAttribute('stroke', c1);
+    if(els.gradStop1) els.gradStop1.setAttribute('stop-color', c1);
+    if(els.gradStop2) els.gradStop2.setAttribute('stop-color', c2 || c1);
+  }catch(e){}
+}
+
+/* Hidden inputs listen for changes (wheels/text inputs update them) */
+['input','change'].forEach(evt=>{
+  if(els.weight) els.weight.addEventListener(evt, previewFromFields);
+  if(els.height) els.height.addEventListener(evt, previewFromFields);
+  if(els.age) els.age.addEventListener(evt, previewFromFields);
+});
+
+/* Reset: bring the form to an ideal BMI (21) for clarity.
+   - If a valid height exists, compute weight to reach BMI 21.
+   - If height is missing/zero, set default height and compute the weight.
+*/
+if(els.resetBtn) els.resetBtn.addEventListener('click', ()=>{
+  const IDEAL_BMI = 21;
+  let h = parseFloat(els.height.value) || 0;
+  if(unit === 'metric'){
+    if(!h || h <= 0){
+      h = 175;
+      if(window._wheels['heightWheel']) window._wheels['heightWheel'].setValue(h);
+      if(els.height) els.height.value = h;
+    }
+    const m = h / 100;
+    const idealW = Math.round((IDEAL_BMI * m * m) * 10)/10;
+    if(window._wheels['weightWheel']) window._wheels['weightWheel'].setValue(idealW);
+    if(els.weight) els.weight.value = idealW;
+  } else {
+    if(!h || h <= 0){
+      h = 69;
+      if(window._wheels['heightWheel']) window._wheels['heightWheel'].setValue(h);
+      if(els.height) els.height.value = h;
+    }
+    const idealWlb = Math.round((IDEAL_BMI * h * h / 703) * 10)/10;
+    if(window._wheels['weightWheel']) window._wheels['weightWheel'].setValue(idealWlb);
+    if(els.weight) els.weight.value = idealWlb;
+  }
+  previewFromFields();
+});
+
+/* Save & Export (unchanged behavior) */
+if(els.saveBtn) els.saveBtn.addEventListener('click', ()=>{
+  const w = els.weight ? parseFloat(els.weight.value) || 0 : 0;
+  const h = els.height ? parseFloat(els.height.value) || 0 : 0;
+  const a = els.age ? parseInt(els.age.value) || 0 : 0;
+  if(!w || !h){ alert('Enter valid weight & height to save.'); return; }
+  const bmi = computeBMI(w,h,unit);
+  const profile = { weight: w, height: h, age: a, unit, bmi, date: new Date().toISOString() };
+  const hist = JSON.parse(localStorage.getItem('bmiStudio.history') || '[]');
+  hist.push(profile);
+  localStorage.setItem('bmiStudio.history', JSON.stringify(hist.slice(-100)));
+  alert('Saved locally (demo). For production, POST to your API.');
+});
+
+if(els.exportBtn) els.exportBtn.addEventListener('click', ()=>{
+  const w = els.weight ? parseFloat(els.weight.value) || 0 : 0;
+  const h = els.height ? parseFloat(els.height.value) || 0 : 0;
+  if(!w || !h){ alert('Enter valid weight & height before exporting.'); return; }
+  const bmi = computeBMI(w,h,unit);
+  const cat = categoryForBMI(bmi);
+  const payload = { bmi, category: cat.title, advice: cat.advice, weight: w, height: h, unit, age: els.age ? parseInt(els.age.value) || null : null, date: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const name = `bmi-index-${new Date().toISOString().slice(0,10)}.json`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* history placeholder */
+const histBtn = document.getElementById('historyBtn');
+if(histBtn) histBtn.addEventListener('click', ()=> {
+  const hist = JSON.parse(localStorage.getItem('bmiStudio.history') || '[]');
+  if(!hist.length) return alert('No saved history (demo).');
+  alert('Saved entries: ' + hist.length + ' (open devtools/localStorage to view).');
+});
+</script>
+</body>
+</html>
