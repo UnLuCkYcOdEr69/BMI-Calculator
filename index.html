@@ -15,6 +15,12 @@
     --accent-2:#59c6ff;
     --card-radius:16px;
     --max-bmi:40;
+
+    /* responsive gauge & spacing tokens */
+    --gauge-size:200px;
+    --card-padding:18px;
+    --wrap-gap:24px;
+    --label-width:92px;
   }
 
   /* Light theme overrides */
@@ -40,17 +46,56 @@
     background: linear-gradient(135deg, #BED7DC, #FBF9F1);
   }
 
-  body{display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;padding:20px}
+  /* Allow scrolling on small viewports and avoid cutoffs */
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    height:auto;
+    overflow:auto;
+    padding:20px;
+    box-sizing:border-box;
+  }
 
-  .wrap{width:980px;max-width:100%;display:grid;grid-template-columns:460px 1fr;gap:24px;align-items:center}
-  @media (max-width:920px){ .wrap{grid-template-columns:1fr;padding:16px} }
+  /* Container */
+  .wrap{
+    width:980px;
+    max-width:100%;
+    display:grid;
+    grid-template-columns:460px 1fr;
+    gap:var(--wrap-gap);
+    align-items:center;
+    box-sizing:border-box;
+  }
+  /* stack on medium/smaller screens */
+  @media (max-width:920px){
+    .wrap{
+      grid-template-columns:1fr;
+      padding:16px;
+      gap:18px;
+    }
+  }
+
+  /* compact layout for very narrow phones */
+  @media (max-width:420px){
+    :root{
+      --gauge-size:140px;
+      --card-padding:12px;
+      --wrap-gap:12px;
+      --label-width:78px;
+    }
+    .wrap{ padding:12px; gap:12px; }
+  }
 
   .card{
     background:linear-gradient(180deg,var(--card),rgba(255,255,255,0.01));
     border-radius:var(--card-radius);
-    padding:18px;
+    padding:var(--card-padding);
     box-shadow:0 8px 30px rgba(0, 102, 255, 0.06);
     border:1px solid rgba(0,0,0,0.04);
+    box-sizing:border-box;
+    width:100%;
   }
 
   /* Dark theme card (default) */
@@ -74,9 +119,9 @@
   .knob{width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 4px 10px rgba(2,6,23,0.16);transform:translateX(0);transition:transform 260ms cubic-bezier(.2,.9,.3,1)}
   .switch.on .knob{transform:translateX(20px)}
 
-  .control{display:flex;gap:12px;align-items:center;margin-bottom:12px}
-  .control .label{width:92px;color:var(--muted);font-size:13px}
-  .field{flex:1;display:flex;align-items:center;gap:10px;justify-content:flex-start}
+  .control{display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+  .control .label{width:var(--label-width);color:var(--muted);font-size:13px;flex:0 0 var(--label-width)}
+  .field{flex:1;display:flex;align-items:center;gap:10px;justify-content:flex-start;min-width:0}
 
   /* Center picker controls only (leave unit-toggle row unchanged) */
   .control .field:not(.unit-toggle){
@@ -98,6 +143,7 @@
     background: linear-gradient(145deg, rgba(135, 107, 107, 0.02), rgba(242, 219, 219, 0.02));
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
+    box-sizing:border-box;
   }
   body.light .picker {
     background: linear-gradient(180deg,#ffffff,#f7fbff);
@@ -163,16 +209,17 @@
     color:var(--text);
     z-index:4;
     caret-color:var(--accent-2);
+    min-width:0;
   }
   body.light .picker-input { color:var(--text); }
 
   .visual{display:flex;flex-direction:column;gap:12px}
-  .result-card{display:flex;gap:18px;align-items:center;padding:16px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border:1px solid rgba(255,255,255,0.02)}
+  .result-card{display:flex;gap:18px;align-items:center;padding:16px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border:1px solid rgba(255,255,255,0.02);box-sizing:border-box}
   body.light .result-card{background:linear-gradient(180deg,rgba(0,0,0,0.02),transparent);border:1px solid rgba(0,0,0,0.06)}
 
-  /* gauge */
-  .gauge{width:200px;height:200px;display:grid;place-items:center;position:relative}
-  svg{transform:rotate(-90deg)}
+  /* gauge - use CSS variable for size and make svg fluid */
+  .gauge{width:var(--gauge-size);height:var(--gauge-size);display:grid;place-items:center;position:relative;flex:0 0 var(--gauge-size)}
+  .gauge svg{width:100%;height:100%;display:block;transform:rotate(-90deg)}
   #arc{transition: stroke 320ms ease, stroke-dashoffset 700ms cubic-bezier(.2,.9,.3,1);}
 
   .bmi-num{position:absolute;display:flex;flex-direction:column;align-items:center}
@@ -181,9 +228,9 @@
 
   .meta{display:flex;flex-direction:column;gap:8px}
   .category{font-weight:700;font-size:20px}
-  .advice{color:var(--muted);font-size:16px;max-width:420px}
+  .advice{color:var(--muted);font-size:16px;max-width:420px;word-break:break-word}
 
-  .actions{display:flex;gap:8px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
   .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#021023;padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer}
   .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text);padding:8px 10px;border-radius:10px}
   body.light .btn.ghost{border:1px solid rgba(0,0,0,0.06);color:var(--text)}
@@ -196,12 +243,47 @@
     white-space:nowrap;border:0;padding:0;margin:-1px;
   }
 
-  @media (max-width:520px){
-    .picker{width:120px;height:54px}
-    .wheel-item{font-size:22px}
-    .rbtn{width:38px;height:38px}
-    .gauge{width:140px;height:140px}
-    .picker-input{font-size:22px}
+  /* Responsive adjustments */
+  @media (max-width:920px){
+    /* ensure visual/result card stacks nicely on narrow screens */
+    .result-card{
+      flex-direction:row;
+      align-items:center;
+      gap:12px;
+      padding:14px;
+    }
+    .gauge{ --gauge-size:180px; width:var(--gauge-size); height:var(--gauge-size); flex:0 0 var(--gauge-size) }
+    .advice{ max-width:280px; font-size:15px }
+  }
+
+  @media (max-width:640px){
+    header h1{ font-size:16px }
+    .control .label{ width:80px; flex:0 0 80px }
+    .picker{ width:120px; height:54px }
+    .picker-input{ font-size:22px }
+    .rbtn{ width:38px; height:38px; font-size:16px; flex:0 0 38px }
+    .gauge{ --gauge-size:160px; width:var(--gauge-size); height:var(--gauge-size); flex:0 0 var(--gauge-size) }
+    .advice{ max-width:220px; font-size:14px }
+  }
+
+  @media (max-width:480px){
+    .result-card{ flex-direction:column; align-items:center; text-align:center; gap:10px }
+    .meta{ align-items:center }
+    .bmi-num .big{ font-size:24px }
+    .gauge{ --gauge-size:140px; width:var(--gauge-size); height:var(--gauge-size); flex:0 0 var(--gauge-size) }
+    .control{ gap:8px }
+    .control .label{ width:72px; flex:0 0 72px; font-size:12px }
+    .advice{ max-width:260px; font-size:13px }
+    .wrap{ padding:10px }
+    .card{ padding:12px }
+  }
+
+  @media (max-width:360px){
+    .picker { width:112px; height:50px }
+    .picker-input { font-size:20px }
+    .gauge{ --gauge-size:120px }
+    .bmi-num .big{ font-size:20px }
+    .advice{ font-size:12px; max-width:220px }
   }
 </style>
 </head>
@@ -302,7 +384,7 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:10px;margin-top:8px">
+      <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
         <button class="btn ghost" id="resetBtn">Reset</button>
         <button class="btn ghost" id="saveBtn">Save</button>
         <button class="btn" id="exportBtn">Export BMI</button>
@@ -751,7 +833,7 @@ if(els.exportBtn) els.exportBtn.addEventListener('click', ()=>{
 
 /* history placeholder */
 const histBtn = document.getElementById('historyBtn');
-if(histBtn) histBtn.addEventListener('click', ()=> {
+if(histBtn) histBtn.addEventListener('click', () => {
   const hist = JSON.parse(localStorage.getItem('bmiStudio.history') || '[]');
   if(!hist.length) return alert('No saved history (demo).');
   alert('Saved entries: ' + hist.length + ' (open devtools/localStorage to view).');
